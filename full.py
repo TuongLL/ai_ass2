@@ -283,11 +283,12 @@ def isWin(board):
 def move(preBoard, curBoard, player, remain_time_x, remain_time_y):
     # start = timeit.default_timer()
     depth = 3
+    # print(player)
     # print(remain_time_x)
-    if player == 1:
-        if remain_time_x < 10 or (remain_time_x < remain_time_y and remain_time_x < 15):
+    if player == -1:
+        if remain_time_x < 8 or (remain_time_x < remain_time_y and remain_time_x < 15):
             depth = 2
-    elif remain_time_y < 10 or (remain_time_y < 15 and remain_time_y < remain_time_x):
+    elif remain_time_y < 8 or (remain_time_y < 15 and remain_time_y < remain_time_x):
         depth = 2
     bestMove = Move(Position(-1, -1), Position(-1, -1))
     moves = getValidMoves(curBoard, preBoard, player)
