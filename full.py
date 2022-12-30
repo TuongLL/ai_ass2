@@ -1,5 +1,6 @@
 import random
 import timeit
+import threading
 class Position:
     def __init__(self, x, y):
         self.x = x
@@ -282,14 +283,8 @@ def isWin(board):
         return False
 def move(preBoard, curBoard, player, remain_time_x, remain_time_y):
     # start = timeit.default_timer()
+    start_time = timeit.default_timer()
     depth = 3
-    # print(player)
-    # print(remain_time_x)
-    if player == -1:
-        if remain_time_x < 8 or (remain_time_x < remain_time_y and remain_time_x < 15):
-            depth = 2
-    elif remain_time_y < 8 or (remain_time_y < 15 and remain_time_y < remain_time_x):
-        depth = 2
     bestMove = Move(Position(-1, -1), Position(-1, -1))
     moves = getValidMoves(curBoard, preBoard, player)
     bestMoves = []
@@ -302,17 +297,39 @@ def move(preBoard, curBoard, player, remain_time_x, remain_time_y):
         return (bestMove.start.x, bestMove.start.y),(bestMove.end.x, bestMove.end.y)
     if len(moves) == 1:
         return (moves[0].start.x, moves[0].start.y),(moves[0].end.x, moves[0].end.y)
-    bestSoFar = - 100
+    bestSoFar = []
+    # depff = []
     beta = 100
     # depth = self.depth
-    for m in moves:
-        clone = copy(curBoard)
-        makeMove(clone, m, player)
-        value = minSearch(clone, curBoard, depth - 1, bestSoFar, beta, player)
-        if value >= bestSoFar:
-            bestSoFar = value
-            bestMoves.append(m)
-            bestValues.append(value)
+
+    def searchDepthThread(depth, curBoard, beta, player, start_time): 
+            bestInside = -100
+            for m in moves:
+                clone = copy(curBoard)
+                makeMove(clone, m, player)
+                # value = minSearch(clone, curBoard, depth - 1, bestSoFar, beta, player)
+                value = maxSearch(clone, curBoard, depth - 1, bestInside, beta, player, start_time)
+                if (value == 1e5):
+                    break
+                if value >= bestInside:
+                    # print(value,bestSoFar)
+                    bestInside = value
+                    bestMoves.append(m) # []
+                    bestValues.append(value) # [] # 
+            # depff.append(depth)
+            bestSoFar.append(bestInside)
+
+    if (player == -1 and (remain_time_x < 8 or (remain_time_x < remain_time_y and remain_time_x < 15))) or (player == 1 and (remain_time_y < 8 or (remain_time_y < 15 and remain_time_y < remain_time_x))):
+            searchDepthThread(2, curBoard, beta, player, start_time)    
+    else:
+        threads = []
+        for dep in range(2,7):
+            t = threading.Thread(target=searchDepthThread, args=(dep, curBoard, beta, player, start_time))
+            threads.append(t)
+            t.start()
+
+        for t in threads:
+            t.join()
     # for move in bestMoves:
     #     print('(' + str(move.start.x) + ', ' + str(move.start.y) +
     #       ')->(' + str(move.end.x) + ', ' + str(move.end.y) + ')')
@@ -321,37 +338,53 @@ def move(preBoard, curBoard, player, remain_time_x, remain_time_y):
         return (bestMoves[0].start.x, bestMoves[0].start.y), (bestMoves[0].end.x, bestMoves[0].end.y)
     finalBestMoves = []
     for i in range(0, len(bestMoves)):
-        if bestValues[i] >= bestSoFar:
+        if bestValues[i] >= max(bestSoFar):
             finalBestMoves.append(bestMoves[i])
-    bestMove = random.choice(finalBestMoves)
- 
- 
+    bestMove = random.choice(finalBestMoves) 
     return (bestMove.start.x, bestMove.start.y),(bestMove.end.x, bestMove.end.y)
-def minSearch(curBoard, preBoard, depth, alpha, beta, player):
-    moves = getValidMoves(curBoard, preBoard, -player)
-    if (depth == 0) | (len(moves) == 0):
-        return evaluate(curBoard, player)
-    value = 100
-    for m in moves:
-        clone = copy(curBoard)
-        makeMove(clone, m, -player)
-        value = min(value, maxSearch(clone, curBoard, depth - 1, alpha, beta, player))
-        if value <= alpha:
-            return value
-        beta = min(beta, value)
-    # print("min", depth, value)
-    return value
-def maxSearch(curBoard, preBoard, depth, alpha, beta, player):
-    moves = getValidMoves(curBoard, preBoard, player)
-    if (depth == 0) | (len(moves) == 0):
-        return evaluate(curBoard, player)
-    value = -100
-    for m in moves:
-        clone = copy(curBoard)
-        makeMove(clone, m, player)
-        value = max(value, minSearch(clone, curBoard, depth - 1, alpha, beta, player))
-        if value >= beta:
-            return value
-        alpha = max(alpha, value)
-    # print("max", depth, value)
-    return value
+
+def minSearch(curBoard, preBoard, depth, alpha, beta, player, start_time):
+        stop = timeit.default_timer()
+        time_step = stop - start_time
+        if (time_step > 2.8):
+            return -1e5
+        moves = getValidMoves(curBoard, preBoard, -player)
+        if (depth == 0) | (len(moves) == 0):
+            return evaluate(curBoard, player)
+        value = 100
+        for m in moves:
+            clone = copy(curBoard)
+            makeMove(clone, m, -player)
+            value = min(value, maxSearch(clone, curBoard, depth - 1, alpha, beta, player, start_time))
+            # if value <= alpha:
+            #     return value
+            # beta = min(beta, value)
+            beta = min(beta, value)
+            if beta <= alpha:
+                break
+        # print("min", depth, value)
+        # time.sleep(3)
+        return value if value != 100 else -1e5
+
+def maxSearch(curBoard, preBoard, depth, alpha, beta, player, start_time):
+        stop = timeit.default_timer()
+        time_step = stop - start_time
+        if (time_step > 2.8):
+            return 1e5
+        moves = getValidMoves(curBoard, preBoard, player)
+        if (depth == 0) | (len(moves) == 0):
+            return evaluate(curBoard, player)
+        value = -100
+        for m in moves:
+            clone = copy(curBoard)
+            makeMove(clone, m, player)
+            value = max(value, minSearch(clone, curBoard, depth - 1, alpha, beta, player, start_time))
+            # if value >= beta:
+            #     return value
+            # alpha = max(alpha, value)
+            alpha = max(alpha, value)
+            if alpha >= beta:
+                break
+        # print("max", depth, value)
+        # time.sleep(3)
+        return value if value != -100 else 1e5
